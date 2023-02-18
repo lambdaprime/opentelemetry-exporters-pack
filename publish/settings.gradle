@@ -1,0 +1,4 @@
+// list of subprojects to publish to Sonatype repo
+
+include 'opentelemetry-exporters-pack'
+project(':opentelemetry-exporters-pack').projectDir = new File(rootDir, '../opentelemetry-exporters-pack')

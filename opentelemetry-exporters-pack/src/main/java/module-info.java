@@ -12,7 +12,10 @@
  *
  * <ul>
  *   <li>{@link id.opentelemetry.exporters.CsvMetricExporter}
- *   <li>{@link id.opentelemetry.exporters.ElasticSearchMetricExporter}
+ *   <li>{@link id.opentelemetry.exporters.ElasticSearchMetricExporter} - export metrics to <a
+ *       href="https://www.elastic.co/elasticsearch/">ElasticSearch</a>. Optionally allows export to
+ *       ElasticSearch with self-signed SSL certificates (by default it is disabled and when enabled
+ *       it prints warning message to the logs)
  * </ul>
  *
  * @see <a href="https://opentelemetry.io">OpenTelemetry</a>
@@ -25,12 +28,14 @@
  * @see <a
  *     href="https://javadoc.io/doc/io.opentelemetry/opentelemetry-sdk-metrics/latest/index.html">OpenTelemetry
  *     SDK javadoc</a>
+ * @see <a href="https://opentelemetry.io/ecosystem/registry/">Registry for OpenTelemetry
+ *     ecosystem</a>
  * @see <a href="http://portal2.atwebpages.com/opentelemetry-exporters-pack">Documentation</a>
  * @see <a href= "https://github.com/lambdaprime/opentelemetry-exporters-pack/releases">Download</a>
  * @see <a href="https://github.com/lambdaprime/opentelemetry-exporters-pack">GitHub repository</a>
  * @author lambdaprime intid@protonmail.com
  */
-module id.opentelemetry.exporters {
+module id.opentelemetry.exporters.pack {
     exports id.opentelemetry.exporters;
 
     requires id.xfunction;

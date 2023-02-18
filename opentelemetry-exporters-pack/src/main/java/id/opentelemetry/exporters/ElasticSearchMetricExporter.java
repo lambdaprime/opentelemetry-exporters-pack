@@ -44,7 +44,7 @@ import java.util.Collection;
 import java.util.Optional;
 
 /**
- * Push Metric Exporter to ElasticSearch.
+ * Push Metric Exporter to <a href="https://www.elastic.co/elasticsearch/">ElasticSearch</a>.
  *
  * <p>It is based on Java {@link HttpClient} and sends all metrics using <a
  * href="https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html">ElastiSearch
@@ -62,15 +62,14 @@ import java.util.Optional;
  * <p>Export schema is based on field names given in {@link ExportSchema}.
  *
  * <p>If ElasticSearch has self-signed SSL certificates by default Java will not allow to connect to
- * it. Use {@link #ElasticSearchMetricExporter(URI, String, String, boolean)} with insecure set to
- * true.
+ * it. Use {@link #ElasticSearchMetricExporter(URI, Optional, boolean)} with insecure set to "true".
  *
  * <h2>Usage</h2>
  *
  * <pre>{@code
  * var metricReader = PeriodicMetricReader
  *   .builder(new ElasticSearchMetricExporter(
- *     URI.create("https://localhost:9200/mymetrics"), "elastic", "pass"))
+ *     URI.create("https://localhost:9200/mymetrics"), Optional.of(new Credentials("elastic", "pass"))))
  *   .setInterval(Duration.ofSeconds(3))
  *   .build();
  * var sdkMeterProvider = SdkMeterProvider.builder()
@@ -108,20 +107,28 @@ public final class ElasticSearchMetricExporter implements MetricExporter {
     /**
      * @param elasticSearch URI to the ElasticSearch index where metrics will be exported.
      *     Credentials can be part of the URL. Example http://user:password@localhost:9200/customers
-     *     They are optional to allow anonymous access if it is allowed on ElasticSearch.
-     * @param insecure allow connections to ElasticSearch with self-signed SSL certificates
+     *     They are optional to allow anonymous access if it is enabled on ElasticSearch.
      */
-    public ElasticSearchMetricExporter(URI elasticSearch, boolean insecure) {
-        this(elasticSearch, Optional.empty(), insecure);
+    public ElasticSearchMetricExporter(URI elasticSearch) {
+        this(elasticSearch, Optional.empty(), false);
     }
 
     /**
      * @param credentials ElasticSearch user and password. They are optional to allow anonymous
-     *     access if it is allowed on ElasticSearch.
+     *     access if it is enabled on ElasticSearch.
+     */
+    public ElasticSearchMetricExporter(URI elasticSearch, Optional<Credentials> credentials) {
+        this(elasticSearch, credentials, false);
+    }
+
+    /**
      * @param insecure allow connections to ElasticSearch with self-signed SSL certificates
      */
     public ElasticSearchMetricExporter(
             URI elasticSearch, Optional<Credentials> credentials, boolean insecure) {
+        if (insecure) {
+            logger.warning("Insecure connetions to ElasticSearch are enabled");
+        }
         this.addBulkApi = URI.create(elasticSearch.toASCIIString() + "/_bulk");
         var builder = HttpClient.newBuilder();
         if (credentials.isEmpty() && elasticSearch.getUserInfo() != null) {

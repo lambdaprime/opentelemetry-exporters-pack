@@ -71,7 +71,7 @@ if (project.hasProperty('publish')) {
     new id.xfunction.text.Substitutor()
       .withRegexpSupport()
       .substitute(java.nio.file.Paths.get("${project.rootDir}/README.md"), Map.of(
-        "io.github.lambdaprime:opentelemetry-exporters-pack:[0-9.]+", "io.github.lambdaprime:opentelemetry-exporters-pack:" + version
+        "io.github.lambdaprime:id.opentelemetry-exporters-pack:[0-9.]+", "io.github.lambdaprime:id.opentelemetry-exporters-pack:" + version
       ));
   }
   createRelease.dependsOn updateVersion
@@ -104,7 +104,7 @@ if (project.hasProperty('publish')) {
         groupId = 'io.github.lambdaprime'
         from components.java
         pom {
-          name = 'opentelemetry-exporters-pack'
+          name = 'id.opentelemetry-exporters-pack'
           description = 'Exporters of OpenTelemetry metrics'
           url = 'https://github.com/lambdaprime/opentelemetry-exporters-pack'
 
