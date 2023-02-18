@@ -41,6 +41,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.Collection;
+import java.util.Optional;
 
 /**
  * Push Metric Exporter to ElasticSearch.
@@ -91,35 +92,53 @@ public final class ElasticSearchMetricExporter implements MetricExporter {
             """
                     { "create": { } }
                     """.trim();
+
+    public record Credentials(String user, String password) {
+        public static Optional<Credentials> fromUri(URI uri) {
+            var userInfo = uri.getUserInfo();
+            if (userInfo == null) return Optional.empty();
+            var a = userInfo.split(":");
+            return Optional.of(new Credentials(a[0], a[1]));
+        }
+    }
+
     private HttpClient client;
     private URI addBulkApi;
 
     /**
-     * @param elasticSearch URI to index where metrics will be stored. Example
-     *     https://localhost:9200/customers
-     * @param user ElasticSearch user
-     * @param password ElasticSearch password
+     * @param elasticSearch URI to the ElasticSearch index where metrics will be exported.
+     *     Credentials can be part of the URL. Example http://user:password@localhost:9200/customers
+     *     They are optional to allow anonymous access if it is allowed on ElasticSearch.
+     * @param insecure allow connections to ElasticSearch with self-signed SSL certificates
      */
-    public ElasticSearchMetricExporter(URI elasticSearch, String user, String password) {
-        this(elasticSearch, user, password, false);
+    public ElasticSearchMetricExporter(URI elasticSearch, boolean insecure) {
+        this(elasticSearch, Optional.empty(), insecure);
     }
 
     /**
+     * @param credentials ElasticSearch user and password. They are optional to allow anonymous
+     *     access if it is allowed on ElasticSearch.
      * @param insecure allow connections to ElasticSearch with self-signed SSL certificates
      */
     public ElasticSearchMetricExporter(
-            URI elasticSearch, String user, String password, boolean insecure) {
+            URI elasticSearch, Optional<Credentials> credentials, boolean insecure) {
         this.addBulkApi = URI.create(elasticSearch.toASCIIString() + "/_bulk");
-        var builder =
-                HttpClient.newBuilder()
-                        .authenticator(
-                                new Authenticator() {
-                                    @Override
-                                    protected PasswordAuthentication getPasswordAuthentication() {
-                                        return new PasswordAuthentication(
-                                                user, password.toCharArray());
-                                    }
-                                });
+        var builder = HttpClient.newBuilder();
+        if (credentials.isEmpty() && elasticSearch.getUserInfo() != null) {
+            credentials = Credentials.fromUri(elasticSearch);
+        }
+        if (credentials.isPresent()) {
+            var creds = credentials.orElseThrow();
+            builder.authenticator(
+                    new Authenticator() {
+                        @Override
+                        protected PasswordAuthentication getPasswordAuthentication() {
+                            return new PasswordAuthentication(
+                                    creds.user, creds.password.toCharArray());
+                        }
+                    });
+        }
+
         if (insecure) builder = new HttpClientBuilder(builder).insecure().get();
         client = builder.build();
     }
