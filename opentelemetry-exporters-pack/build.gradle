@@ -100,7 +100,7 @@ if (project.hasProperty('publish')) {
   publishing {
     publications {
       mavenJava(MavenPublication) {
-        artifactId = 'opentelemetry-exporters-pack'
+        artifactId = 'id.opentelemetry-exporters-pack'
         groupId = 'io.github.lambdaprime'
         from components.java
         pom {
