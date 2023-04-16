@@ -17,7 +17,7 @@
  */
 package id.opentelemetry.exporters;
 
-import id.xfunction.XJson;
+import id.xfunction.XJsonStringBuilder;
 import id.xfunction.logging.XLogger;
 import id.xfunction.net.HttpClientBuilder;
 import io.opentelemetry.sdk.common.CompletableResultCode;
@@ -153,12 +153,23 @@ public final class ElasticSearchMetricExporter implements MetricExporter {
     @Override
     public CompletableResultCode export(Collection<MetricData> metrics) {
         logger.fine("Received a collection of " + metrics.size() + " metrics for export.");
+        System.out.println(metrics);
         for (MetricData metricData : metrics) {
             logger.fine("metric: " + metricData);
+            var jsonDataBuilder = new XJsonStringBuilder();
+            jsonDataBuilder.append(
+                    ExportSchema.SCOPE_NAME, metricData.getInstrumentationScopeInfo().getName());
+            jsonDataBuilder.append(
+                    ExportSchema.SCOPE_VERSION,
+                    metricData.getInstrumentationScopeInfo().getVersion());
+            jsonDataBuilder.append(
+                    ExportSchema.SCOPE_SCHEMA,
+                    metricData.getInstrumentationScopeInfo().getSchemaUrl());
             switch (metricData.getType()) {
-                case LONG_SUM -> sendLongSum(metricData.getName(), metricData.getLongSumData());
+                case LONG_SUM -> sendLongSum(
+                        metricData.getName(), jsonDataBuilder, metricData.getLongSumData());
                 case HISTOGRAM -> sendHistogram(
-                        metricData.getName(), metricData.getHistogramData());
+                        metricData.getName(), jsonDataBuilder, metricData.getHistogramData());
                 default -> logger.warning(
                         "metric " + metricData.getType() + " not supported, ignoring...");
             }
@@ -166,37 +177,37 @@ public final class ElasticSearchMetricExporter implements MetricExporter {
         return CompletableResultCode.ofSuccess();
     }
 
-    private void sendHistogram(String name, HistogramData data) {
+    private void sendHistogram(
+            String name, XJsonStringBuilder jsonDataBuilder, HistogramData data) {
         if (data.getPoints().isEmpty()) return;
         var buf = new StringBuilder();
         for (var p : data.getPoints()) {
-            var entry =
-                    XJson.asString(
-                            ExportSchema.METRIC_NAME, name,
-                            ExportSchema.METRIC_TYPE, "histogram",
-                            ExportSchema.START_TIME, asTimeString(p.getStartEpochNanos()),
-                            ExportSchema.END_TIME, asTimeString(p.getEpochNanos()),
-                            ExportSchema.COUNT, p.getCount(),
-                            ExportSchema.SUM, p.getSum(),
-                            ExportSchema.MIN, p.getMin(),
-                            ExportSchema.MAX, p.getMax(),
-                            ExportSchema.AVG, p.getSum() / p.getCount());
+            jsonDataBuilder.append(ExportSchema.METRIC_NAME, name);
+            jsonDataBuilder.append(ExportSchema.METRIC_TYPE, "histogram");
+            jsonDataBuilder.append(ExportSchema.START_TIME, asTimeString(p.getStartEpochNanos()));
+            jsonDataBuilder.append(ExportSchema.END_TIME, asTimeString(p.getEpochNanos()));
+            jsonDataBuilder.append(ExportSchema.COUNT, p.getCount());
+            jsonDataBuilder.append(ExportSchema.SUM, p.getSum());
+            jsonDataBuilder.append(ExportSchema.MIN, p.getMin());
+            jsonDataBuilder.append(ExportSchema.MAX, p.getMax());
+            jsonDataBuilder.append(ExportSchema.AVG, p.getSum() / p.getCount());
+            var entry = jsonDataBuilder.build();
             buf.append(CREATE_JSON).append("\n").append(entry).append("\n");
         }
         sendMetrics(buf.toString());
     }
 
-    private void sendLongSum(String name, SumData<LongPointData> data) {
+    private void sendLongSum(
+            String name, XJsonStringBuilder jsonDataBuilder, SumData<LongPointData> data) {
         if (data.getPoints().isEmpty()) return;
         var buf = new StringBuilder();
         for (var p : data.getPoints()) {
-            var entry =
-                    XJson.asString(
-                            ExportSchema.METRIC_NAME, name,
-                            ExportSchema.METRIC_TYPE, "counter",
-                            ExportSchema.START_TIME, asTimeString(p.getStartEpochNanos()),
-                            ExportSchema.END_TIME, asTimeString(p.getEpochNanos()),
-                            ExportSchema.VALUE, p.getValue());
+            jsonDataBuilder.append(ExportSchema.METRIC_NAME, name);
+            jsonDataBuilder.append(ExportSchema.METRIC_TYPE, "counter");
+            jsonDataBuilder.append(ExportSchema.START_TIME, asTimeString(p.getStartEpochNanos()));
+            jsonDataBuilder.append(ExportSchema.END_TIME, asTimeString(p.getEpochNanos()));
+            jsonDataBuilder.append(ExportSchema.VALUE, p.getValue());
+            var entry = jsonDataBuilder.build();
             buf.append(CREATE_JSON).append("\n").append(entry).append("\n");
         }
         sendMetrics(buf.toString());

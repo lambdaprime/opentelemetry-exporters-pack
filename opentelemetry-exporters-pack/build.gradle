@@ -10,6 +10,7 @@ buildscript {
 
 plugins {
   id 'com.diffplug.spotless'
+  id 'java-library'
 }
 
 apply plugin : 'eclipse'
@@ -21,29 +22,25 @@ eclipse.classpath.file {
   }
 }
 
-javadoc {
-    options.noTimestamp = true;
-    options.noQualifiers = ["all"];
-    options.noTree = true;
-    options.noIndex = true;
-    options.noNavBar = true;
-    // ignore missing @return, @param etc
-    options.addBooleanOption('Xdoclint:all,-missing', true)
-}
-
 dependencies {
-  addDependencies(this, ["implementation", "apiElements"], "20.0", [
-    "io.github.lambdaprime:id.xfunction"
-  ]);
-  addDependencies(this, ["implementation", "apiElements"], "1.22.0", [
-    "io.opentelemetry:opentelemetry-sdk"
-  ]);
+  api "io.github.lambdaprime:id.xfunction:22.0-SNAPSHOT"
+  api "io.opentelemetry:opentelemetry-sdk:1.22.0"
 }
 
 jar {
   manifest { 
     attributes 'Implementation-Version': "${rootProject.version}"
   }
+}
+
+javadoc {
+  options.noTimestamp = true
+  options.noQualifiers = ["all"]
+  options.noTree = true
+  options.noIndex = true
+  options.noNavBar = true
+  // ignore missing @return, @param etc
+  options.addBooleanOption('Xdoclint:all,-missing', true)
 }
 
 task createRelease(type: Copy) {
@@ -53,7 +50,7 @@ task createRelease(type: Copy) {
 }
 
 task cleanRelease(type: Delete) {
-  delete "$projectDir/release"
+  delete "$projectDir/release/*-SNAPSHOT.zip"
 }
 
 assemble.dependsOn createRelease
@@ -62,26 +59,27 @@ clean.dependsOn cleanRelease
 // run spotless and format code before the build
 classes.dependsOn spotlessApply
 
-if (project.hasProperty('publish')) {
+task updateVersion() {
+  // update version only when it is specified and non SNAPSHOT version is built
+  // 'unspecified' is the default value for the version in Gradle if it is not set
+  if (!version || version == "unspecified" || version.contains("SNAPSHOT")) return;
+  println "Updating version to " + version
+  new id.xfunction.text.Substitutor()
+    .withRegexpSupport()
+    .substitute(java.nio.file.Paths.get("${project.rootDir}/README.md"), Map.of(
+      "io.github.lambdaprime:id.opentelemetry-exporters-pack:[0-9.]+", "io.github.lambdaprime:id.opentelemetry-exporters-pack:" + version
+    ));
+}
+createRelease.dependsOn updateVersion
 
-  // update version only during publishing
-  task updateVersion() {
-    if (version.contains("SNAPSHOT")) return;
-    println "Updating version to " + version
-    new id.xfunction.text.Substitutor()
-      .withRegexpSupport()
-      .substitute(java.nio.file.Paths.get("${project.rootDir}/README.md"), Map.of(
-        "io.github.lambdaprime:id.opentelemetry-exporters-pack:[0-9.]+", "io.github.lambdaprime:id.opentelemetry-exporters-pack:" + version
-      ));
-  }
-  createRelease.dependsOn updateVersion
+if (project.hasProperty('publish')) {
 
   // Initially it was taken from https://central.sonatype.org/publish/publish-gradle/
   // but since Gradle removed this plugin https://docs.gradle.org/7.0/userguide/upgrading_version_6.html#removal_of_the_legacy_maven_plugin
   // it was rewritten for new one
 
   task javadocJar(type: Jar) {
-    classifier = 'javadoc'
+    archiveClassifier = 'javadoc'
     from "README-javadoc.txt"
   }
 

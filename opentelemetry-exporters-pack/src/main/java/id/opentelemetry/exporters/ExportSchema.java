@@ -28,4 +28,7 @@ public interface ExportSchema {
     String MAX = "MAX";
     String METRIC_TYPE = "METRIC_TYPE";
     String AVG = "AVG";
+    String SCOPE_NAME = "SCOPE_NAME";
+    String SCOPE_VERSION = "SCOPE_VERSION";
+    String SCOPE_SCHEMA = "SCOPE_SCHEMA";
 }
