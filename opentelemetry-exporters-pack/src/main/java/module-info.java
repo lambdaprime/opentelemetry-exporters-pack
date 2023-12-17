@@ -41,6 +41,7 @@ module id.opentelemetry.exporters.pack {
     requires id.xfunction;
     requires io.opentelemetry.sdk.common;
     requires io.opentelemetry.sdk.metrics;
+    requires io.opentelemetry.api;
     requires java.logging;
     requires java.net.http;
 }

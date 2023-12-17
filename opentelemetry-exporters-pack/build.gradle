@@ -4,12 +4,13 @@ buildscript {
     mavenCentral()
   }
   dependencies {
-    classpath "io.github.lambdaprime:id.xfunction:14.0"
+    classpath "io.github.lambdaprime:id.xfunction:23.0"
   }
 }
 
 plugins {
   id 'com.diffplug.spotless'
+  // only if you build Java library
   id 'java-library'
 }
 
@@ -23,7 +24,8 @@ eclipse.classpath.file {
 }
 
 dependencies {
-  api "io.github.lambdaprime:id.xfunction:22.0-SNAPSHOT"
+  api "io.github.lambdaprime:id.xfunction:24.0-SNAPSHOT"
+  api "io.opentelemetry:opentelemetry-api:1.22.0"
   api "io.opentelemetry:opentelemetry-sdk:1.22.0"
 }
 

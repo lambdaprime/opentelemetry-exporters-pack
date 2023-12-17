@@ -31,6 +31,7 @@ import io.opentelemetry.sdk.metrics.data.SumData;
 import io.opentelemetry.sdk.metrics.export.MetricExporter;
 import java.io.IOException;
 import java.net.Authenticator;
+import java.net.ConnectException;
 import java.net.PasswordAuthentication;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -153,7 +154,6 @@ public final class ElasticSearchMetricExporter implements MetricExporter {
     @Override
     public CompletableResultCode export(Collection<MetricData> metrics) {
         logger.fine("Received a collection of " + metrics.size() + " metrics for export.");
-        System.out.println(metrics);
         for (MetricData metricData : metrics) {
             logger.fine("metric: " + metricData);
             var jsonDataBuilder = new XJsonStringBuilder();
@@ -191,6 +191,11 @@ public final class ElasticSearchMetricExporter implements MetricExporter {
             jsonDataBuilder.append(ExportSchema.MIN, p.getMin());
             jsonDataBuilder.append(ExportSchema.MAX, p.getMax());
             jsonDataBuilder.append(ExportSchema.AVG, p.getSum() / p.getCount());
+            p.getAttributes().asMap().entrySet().stream()
+                    .forEach(
+                            e ->
+                                    jsonDataBuilder.append(
+                                            ExportSchema.ATTR_PREFIX + e.getKey(), e.getValue()));
             var entry = jsonDataBuilder.build();
             buf.append(CREATE_JSON).append("\n").append(entry).append("\n");
         }
@@ -207,6 +212,11 @@ public final class ElasticSearchMetricExporter implements MetricExporter {
             jsonDataBuilder.append(ExportSchema.START_TIME, asTimeString(p.getStartEpochNanos()));
             jsonDataBuilder.append(ExportSchema.END_TIME, asTimeString(p.getEpochNanos()));
             jsonDataBuilder.append(ExportSchema.VALUE, p.getValue());
+            p.getAttributes().asMap().entrySet().stream()
+                    .forEach(
+                            e ->
+                                    jsonDataBuilder.append(
+                                            ExportSchema.ATTR_PREFIX + e.getKey(), e.getValue()));
             var entry = jsonDataBuilder.build();
             buf.append(CREATE_JSON).append("\n").append(entry).append("\n");
         }
@@ -226,8 +236,10 @@ public final class ElasticSearchMetricExporter implements MetricExporter {
                         "Failed to send metrics to ElasticSearch, response code {0}: {1}",
                         response.statusCode(), response.body());
             }
+        } catch (ConnectException e) {
+            logger.severe(e.getMessage());
         } catch (InterruptedException | IOException e) {
-            e.printStackTrace();
+            logger.severe(e);
         }
     }
 

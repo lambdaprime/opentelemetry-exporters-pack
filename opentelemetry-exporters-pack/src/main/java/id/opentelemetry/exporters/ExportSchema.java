@@ -31,4 +31,5 @@ public interface ExportSchema {
     String SCOPE_NAME = "SCOPE_NAME";
     String SCOPE_VERSION = "SCOPE_VERSION";
     String SCOPE_SCHEMA = "SCOPE_SCHEMA";
+    String ATTR_PREFIX = "ATTR.";
 }
