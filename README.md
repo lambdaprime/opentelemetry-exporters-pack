@@ -6,7 +6,7 @@ Java 17+
 
 # Download
 
-[Release versions](https://github.com/lambdaprime/opentelemetry-exporters-pack/releases)
+[Release versions](opentelemetry-exporters-pack/release/CHANGELOG.md)
 
 Or you can add dependency to it as follows:
 
@@ -14,7 +14,7 @@ Gradle:
 
 ```
 dependencies {
-    implementation 'io.github.lambdaprime:id.opentelemetry-exporters-pack:1.0'
+  implementation 'io.github.lambdaprime:id.opentelemetry-exporters-pack:2.0'
 }
 ```
 
