@@ -38,9 +38,11 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse.BodyHandlers;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Optional;
 
@@ -104,6 +106,7 @@ public final class ElasticSearchMetricExporter implements MetricExporter {
 
     private HttpClient client;
     private URI addBulkApi;
+    private Duration timeout;
 
     /**
      * @param elasticSearch URI to the ElasticSearch index where metrics will be exported.
@@ -111,7 +114,7 @@ public final class ElasticSearchMetricExporter implements MetricExporter {
      *     They are optional to allow anonymous access if it is enabled on ElasticSearch.
      */
     public ElasticSearchMetricExporter(URI elasticSearch) {
-        this(elasticSearch, Optional.empty(), false);
+        this(elasticSearch, Optional.empty(), Duration.ZERO, false);
     }
 
     /**
@@ -119,14 +122,18 @@ public final class ElasticSearchMetricExporter implements MetricExporter {
      *     access if it is enabled on ElasticSearch.
      */
     public ElasticSearchMetricExporter(URI elasticSearch, Optional<Credentials> credentials) {
-        this(elasticSearch, credentials, false);
+        this(elasticSearch, credentials, Duration.ZERO, false);
     }
 
     /**
      * @param insecure allow connections to ElasticSearch with self-signed SSL certificates
      */
     public ElasticSearchMetricExporter(
-            URI elasticSearch, Optional<Credentials> credentials, boolean insecure) {
+            URI elasticSearch,
+            Optional<Credentials> credentials,
+            Duration timeout,
+            boolean insecure) {
+        this.timeout = timeout;
         if (insecure) {
             logger.warning("Insecure connetions to ElasticSearch are enabled");
         }
@@ -148,12 +155,15 @@ public final class ElasticSearchMetricExporter implements MetricExporter {
         }
 
         if (insecure) builder = new HttpClientBuilder(builder).insecure().get();
+        if (timeout != Duration.ZERO) builder.connectTimeout(timeout);
         client = builder.build();
     }
 
+    @SuppressWarnings("exports")
     @Override
     public CompletableResultCode export(Collection<MetricData> metrics) {
         logger.fine("Received a collection of " + metrics.size() + " metrics for export.");
+        var out = new ArrayList<CompletableResultCode>();
         for (MetricData metricData : metrics) {
             logger.fine("metric: " + metricData);
             var jsonDataBuilder = new XJsonStringBuilder();
@@ -165,21 +175,29 @@ public final class ElasticSearchMetricExporter implements MetricExporter {
             jsonDataBuilder.append(
                     ExportSchema.SCOPE_SCHEMA,
                     metricData.getInstrumentationScopeInfo().getSchemaUrl());
-            switch (metricData.getType()) {
-                case LONG_SUM -> sendLongSum(
-                        metricData.getName(), jsonDataBuilder, metricData.getLongSumData());
-                case HISTOGRAM -> sendHistogram(
-                        metricData.getName(), jsonDataBuilder, metricData.getHistogramData());
-                default -> logger.warning(
-                        "metric " + metricData.getType() + " not supported, ignoring...");
-            }
+            out.add(
+                    switch (metricData.getType()) {
+                        case LONG_SUM -> sendLongSum(
+                                metricData.getName(), jsonDataBuilder, metricData.getLongSumData());
+                        case HISTOGRAM -> sendHistogram(
+                                metricData.getName(),
+                                jsonDataBuilder,
+                                metricData.getHistogramData());
+                        default -> {
+                            logger.warning(
+                                    "metric "
+                                            + metricData.getType()
+                                            + " not supported, ignoring...");
+                            yield CompletableResultCode.ofFailure();
+                        }
+                    });
         }
-        return CompletableResultCode.ofSuccess();
+        return CompletableResultCode.ofAll(out);
     }
 
-    private void sendHistogram(
+    private CompletableResultCode sendHistogram(
             String name, XJsonStringBuilder jsonDataBuilder, HistogramData data) {
-        if (data.getPoints().isEmpty()) return;
+        if (data.getPoints().isEmpty()) return CompletableResultCode.ofSuccess();
         var buf = new StringBuilder();
         for (var p : data.getPoints()) {
             jsonDataBuilder.append(ExportSchema.METRIC_NAME, name);
@@ -199,12 +217,12 @@ public final class ElasticSearchMetricExporter implements MetricExporter {
             var entry = jsonDataBuilder.build();
             buf.append(CREATE_JSON).append("\n").append(entry).append("\n");
         }
-        sendMetrics(buf.toString());
+        return sendMetrics(buf.toString());
     }
 
-    private void sendLongSum(
+    private CompletableResultCode sendLongSum(
             String name, XJsonStringBuilder jsonDataBuilder, SumData<LongPointData> data) {
-        if (data.getPoints().isEmpty()) return;
+        if (data.getPoints().isEmpty()) return CompletableResultCode.ofSuccess();
         var buf = new StringBuilder();
         for (var p : data.getPoints()) {
             jsonDataBuilder.append(ExportSchema.METRIC_NAME, name);
@@ -220,27 +238,43 @@ public final class ElasticSearchMetricExporter implements MetricExporter {
             var entry = jsonDataBuilder.build();
             buf.append(CREATE_JSON).append("\n").append(entry).append("\n");
         }
-        sendMetrics(buf.toString());
+        return sendMetrics(buf.toString());
     }
 
-    private void sendMetrics(String metricsJson) {
-        try {
-            var request =
-                    HttpRequest.newBuilder(addBulkApi)
-                            .POST(BodyPublishers.ofString(metricsJson.toString()))
-                            .header("Content-Type", "application/json")
-                            .build();
-            var response = client.send(request, BodyHandlers.ofString());
-            if (response.statusCode() != 200) {
-                logger.severe(
-                        "Failed to send metrics to ElasticSearch, response code {0}: {1}",
-                        response.statusCode(), response.body());
-            }
-        } catch (ConnectException e) {
-            logger.severe(e.getMessage());
-        } catch (InterruptedException | IOException e) {
-            logger.severe(e);
-        }
+    private CompletableResultCode sendMetrics(String metricsJson) {
+        var builder =
+                HttpRequest.newBuilder(addBulkApi)
+                        .POST(BodyPublishers.ofString(metricsJson.toString()))
+                        .header("Content-Type", "application/json");
+        if (timeout != Duration.ZERO) builder.timeout(timeout);
+        var request = builder.build();
+        var code = new CompletableResultCode();
+        client.sendAsync(request, BodyHandlers.ofString())
+                .whenComplete(
+                        (response, ex) -> {
+                            if (ex instanceof ConnectException e) {
+                                logger.severe(e.getMessage());
+                                code.fail();
+                                return;
+                            } else if (ex instanceof InterruptedException e) {
+                                logger.severe(e.getMessage());
+                                code.fail();
+                                return;
+                            } else if (ex instanceof IOException e) {
+                                logger.severe(e);
+                                code.fail();
+                                return;
+                            } else if (response.statusCode() != 200) {
+                                logger.severe(
+                                        "Failed to send metrics to ElasticSearch, response code"
+                                                + " {0}: {1}",
+                                        response.statusCode(), response.body());
+                                code.fail();
+                                return;
+                            }
+                            code.succeed();
+                        });
+        return code;
     }
 
     private String asTimeString(long epochNanos) {

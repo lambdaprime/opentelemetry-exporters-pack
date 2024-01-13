@@ -41,11 +41,12 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 public class ElasticsearchMetricsExtension
         implements BeforeAllCallback, AfterAllCallback, ExtensionContext.Store.CloseableResource {
 
+    private Duration timeout = Duration.ofSeconds(4);
     private SdkMeterProvider sdkMeterProvider;
 
     @Override
     public void close() {
-        sdkMeterProvider.shutdown().join(Long.MAX_VALUE, TimeUnit.DAYS);
+        sdkMeterProvider.shutdown().join(timeout.toMillis(), TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -73,6 +74,7 @@ public class ElasticsearchMetricsExtension
                                                                         + " METRICS_ELASTIC_URL env"
                                                                         + " variable is present"))),
                         Optional.empty(),
+                        timeout,
                         true);
         var metricReader =
                 PeriodicMetricReader.builder(exporter).setInterval(Duration.ofSeconds(3)).build();
