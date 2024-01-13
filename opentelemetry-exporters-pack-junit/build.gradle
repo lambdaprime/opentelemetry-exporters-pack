@@ -1,0 +1,127 @@
+plugins {
+  id 'com.diffplug.spotless'
+  // only if you build Java library
+  id 'java-library'
+}
+
+apply plugin : 'eclipse'
+
+eclipse.classpath.file {
+  // instruct eclipse plugin to put everything to module path
+  whenMerged {
+    entries.findAll { it.kind == 'lib' }.each { it.entryAttributes['module'] = 'true' }
+  }
+}
+
+dependencies {
+  implementation project(':opentelemetry-exporters-pack')
+  def junitVersion = "5.8.1"
+  implementation "org.junit.jupiter:junit-jupiter-api:${junitVersion}"
+}
+
+jar {
+  manifest { 
+    attributes 'Implementation-Version': "${rootProject.version}"
+  }
+}
+
+javadoc {
+  options.noTimestamp = true
+  options.noQualifiers = ["all"]
+  options.noTree = true
+  options.noIndex = true
+  options.noNavBar = true
+  // ignore missing @return, @param etc
+  options.addBooleanOption('Xdoclint:all,-missing', true)
+}
+
+def releaseDir = project(':opentelemetry-exporters-pack').projectDir.toString() + '/release'
+
+task createRelease(type: Copy) {
+  from jar.archiveFile
+  into releaseDir
+}
+
+task cleanRelease(type: Delete) {
+  delete releaseDir + "/*-SNAPSHOT.zip"
+}
+
+assemble.dependsOn createRelease
+clean.dependsOn cleanRelease
+
+// run spotless and format code before the build
+classes.dependsOn spotlessApply
+
+if (project.hasProperty('publish')) {
+
+  // Initially it was taken from https://central.sonatype.org/publish/publish-gradle/
+  // but since Gradle removed this plugin https://docs.gradle.org/7.0/userguide/upgrading_version_6.html#removal_of_the_legacy_maven_plugin
+  // it was rewritten for new one
+
+  task javadocJar(type: Jar) {
+    archiveClassifier = 'javadoc'
+    from "README-javadoc.txt"
+  }
+
+  task sourcesJar(type: Jar) {
+    archiveClassifier = 'sources'
+    from "README-sources.txt"
+  }
+
+  java {
+    withJavadocJar()
+    withSourcesJar()
+  }
+
+  apply plugin: 'maven-publish'
+
+  publishing {
+    publications {
+      mavenJava(MavenPublication) {
+        artifactId = 'id.opentelemetry-exporters-pack-junit'
+        groupId = 'io.github.lambdaprime'
+        from components.java
+        pom {
+          name = 'id.opentelemetry-exporters-pack-junit'
+          description = 'Exporters of OpenTelemetry metrics (extensions for JUnit)'
+          url = 'https://github.com/lambdaprime/opentelemetry-exporters-pack'
+
+          licenses {
+            license {
+              name = 'The Apache License, Version 2.0'
+              url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+            }
+          }
+
+          developers {
+            developer {
+              id = 'lambdaprime'
+              email = 'intid@protonmail.com'
+            }
+          }
+
+          scm {
+            url = 'https://github.com/lambdaprime/opentelemetry-exporters-pack'
+          }
+        }
+      }
+    }
+    repositories {
+      maven {
+        credentials {
+          username ossrhUsername
+          password ossrhPassword
+        }
+        url = "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/"
+      }
+    }    
+  }
+
+  if (project.hasProperty('signing.secretKeyRingFile')) {
+    apply plugin: 'signing'
+
+    signing {
+      sign publishing.publications.mavenJava
+    }
+  }
+}
