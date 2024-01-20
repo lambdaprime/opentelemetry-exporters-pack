@@ -38,20 +38,14 @@ import org.junit.jupiter.api.extension.ExtensionContext;
  *
  * @author lambdaprime intid@protonmail.com
  */
-public class ElasticsearchMetricsExtension
-        implements BeforeAllCallback, AfterAllCallback, ExtensionContext.Store.CloseableResource {
+public class ElasticsearchMetricsExtension implements BeforeAllCallback, AfterAllCallback {
 
     private Duration timeout = Duration.ofSeconds(4);
     private SdkMeterProvider sdkMeterProvider;
 
     @Override
-    public void close() {
-        sdkMeterProvider.shutdown().join(timeout.toMillis(), TimeUnit.MILLISECONDS);
-    }
-
-    @Override
     public void afterAll(ExtensionContext context) throws Exception {
-        close();
+        sdkMeterProvider.shutdown().join(timeout.toMillis(), TimeUnit.MILLISECONDS);
     }
 
     @Override

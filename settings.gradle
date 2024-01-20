@@ -1,2 +1,3 @@
 include 'opentelemetry-exporters-pack'
 include 'opentelemetry-exporters-pack-junit'
+include 'opentelemetry-exporters-pack.tests'

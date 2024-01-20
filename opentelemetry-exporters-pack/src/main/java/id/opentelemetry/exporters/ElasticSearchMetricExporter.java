@@ -45,6 +45,7 @@ import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Optional;
+import java.util.function.Function;
 
 /**
  * Push Metric Exporter to <a href="https://www.elastic.co/elasticsearch/">ElasticSearch</a>.
@@ -88,7 +89,7 @@ import java.util.Optional;
  * @author lambdaprime intid@protonmail.com
  */
 public final class ElasticSearchMetricExporter implements MetricExporter {
-    private static final XLogger logger =
+    private static final XLogger LOGGER =
             XLogger.getLogger(ElasticSearchMetricExporter.class.getName());
     private static final Object CREATE_JSON =
             """
@@ -106,7 +107,8 @@ public final class ElasticSearchMetricExporter implements MetricExporter {
 
     private HttpClient client;
     private URI addBulkApi;
-    private Duration timeout;
+    private Duration timeout = Duration.ZERO;
+    private Function<String, CompletableResultCode> sendMetrics = this::sendMetrics;
 
     /**
      * @param elasticSearch URI to the ElasticSearch index where metrics will be exported.
@@ -135,7 +137,7 @@ public final class ElasticSearchMetricExporter implements MetricExporter {
             boolean insecure) {
         this.timeout = timeout;
         if (insecure) {
-            logger.warning("Insecure connetions to ElasticSearch are enabled");
+            LOGGER.warning("Insecure connetions to ElasticSearch are enabled");
         }
         this.addBulkApi = URI.create(elasticSearch.toASCIIString() + "/_bulk");
         var builder = HttpClient.newBuilder();
@@ -159,13 +161,23 @@ public final class ElasticSearchMetricExporter implements MetricExporter {
         client = builder.build();
     }
 
+    /**
+     * @hidden for tests
+     */
+    @SuppressWarnings("exports")
+    public ElasticSearchMetricExporter(
+            URI addBulkApi, Function<String, CompletableResultCode> sendMetrics) {
+        this.addBulkApi = addBulkApi;
+        this.sendMetrics = sendMetrics;
+    }
+
     @SuppressWarnings("exports")
     @Override
     public CompletableResultCode export(Collection<MetricData> metrics) {
-        logger.fine("Received a collection of " + metrics.size() + " metrics for export.");
+        LOGGER.fine("Received a collection of {0} metrics for export.", metrics.size());
         var out = new ArrayList<CompletableResultCode>();
         for (MetricData metricData : metrics) {
-            logger.fine("metric: " + metricData);
+            LOGGER.fine("metric: {0}", metricData);
             var jsonDataBuilder = new XJsonStringBuilder();
             jsonDataBuilder.append(
                     ExportSchema.SCOPE_NAME, metricData.getInstrumentationScopeInfo().getName());
@@ -184,10 +196,8 @@ public final class ElasticSearchMetricExporter implements MetricExporter {
                                 jsonDataBuilder,
                                 metricData.getHistogramData());
                         default -> {
-                            logger.warning(
-                                    "metric "
-                                            + metricData.getType()
-                                            + " not supported, ignoring...");
+                            LOGGER.warning(
+                                    "metric {0} not supported, ignoring...", metricData.getType());
                             yield CompletableResultCode.ofFailure();
                         }
                     });
@@ -217,7 +227,7 @@ public final class ElasticSearchMetricExporter implements MetricExporter {
             var entry = jsonDataBuilder.build();
             buf.append(CREATE_JSON).append("\n").append(entry).append("\n");
         }
-        return sendMetrics(buf.toString());
+        return sendMetrics.apply(buf.toString());
     }
 
     private CompletableResultCode sendLongSum(
@@ -238,7 +248,7 @@ public final class ElasticSearchMetricExporter implements MetricExporter {
             var entry = jsonDataBuilder.build();
             buf.append(CREATE_JSON).append("\n").append(entry).append("\n");
         }
-        return sendMetrics(buf.toString());
+        return sendMetrics.apply(buf.toString());
     }
 
     private CompletableResultCode sendMetrics(String metricsJson) {
@@ -249,23 +259,29 @@ public final class ElasticSearchMetricExporter implements MetricExporter {
         if (timeout != Duration.ZERO) builder.timeout(timeout);
         var request = builder.build();
         var code = new CompletableResultCode();
+        LOGGER.info("Sending metrics");
         client.sendAsync(request, BodyHandlers.ofString())
                 .whenComplete(
                         (response, ex) -> {
+                            LOGGER.info("Metrics sent");
                             if (ex instanceof ConnectException e) {
-                                logger.severe(e.getMessage());
+                                LOGGER.severe(e.getMessage());
                                 code.fail();
                                 return;
                             } else if (ex instanceof InterruptedException e) {
-                                logger.severe(e.getMessage());
+                                LOGGER.severe(e.getMessage());
                                 code.fail();
                                 return;
                             } else if (ex instanceof IOException e) {
-                                logger.severe(e);
+                                LOGGER.severe(e);
+                                code.fail();
+                                return;
+                            } else if (ex != null) {
+                                LOGGER.severe(ex.getMessage());
                                 code.fail();
                                 return;
                             } else if (response.statusCode() != 200) {
-                                logger.severe(
+                                LOGGER.severe(
                                         "Failed to send metrics to ElasticSearch, response code"
                                                 + " {0}: {1}",
                                         response.statusCode(), response.body());
@@ -284,13 +300,13 @@ public final class ElasticSearchMetricExporter implements MetricExporter {
 
     @Override
     public CompletableResultCode flush() {
-        logger.fine("flush");
+        LOGGER.fine("flush");
         return CompletableResultCode.ofSuccess();
     }
 
     @Override
     public CompletableResultCode shutdown() {
-        logger.fine("shutdown");
+        LOGGER.fine("shutdown");
         return CompletableResultCode.ofSuccess();
     }
 
