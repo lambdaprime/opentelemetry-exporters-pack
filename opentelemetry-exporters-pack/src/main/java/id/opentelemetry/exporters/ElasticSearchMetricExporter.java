@@ -42,7 +42,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Optional;
 import java.util.function.Function;
@@ -175,7 +174,7 @@ public final class ElasticSearchMetricExporter implements MetricExporter {
     @Override
     public CompletableResultCode export(Collection<MetricData> metrics) {
         LOGGER.fine("Received a collection of {0} metrics for export.", metrics.size());
-        var out = new ArrayList<CompletableResultCode>();
+        var json = new StringBuilder();
         for (MetricData metricData : metrics) {
             LOGGER.fine("metric: {0}", metricData);
             var jsonDataBuilder = new XJsonStringBuilder();
@@ -187,28 +186,25 @@ public final class ElasticSearchMetricExporter implements MetricExporter {
             jsonDataBuilder.append(
                     ExportSchema.SCOPE_SCHEMA,
                     metricData.getInstrumentationScopeInfo().getSchemaUrl());
-            out.add(
-                    switch (metricData.getType()) {
-                        case LONG_SUM -> sendLongSum(
-                                metricData.getName(), jsonDataBuilder, metricData.getLongSumData());
-                        case HISTOGRAM -> sendHistogram(
-                                metricData.getName(),
-                                jsonDataBuilder,
-                                metricData.getHistogramData());
-                        default -> {
-                            LOGGER.warning(
-                                    "metric {0} not supported, ignoring...", metricData.getType());
-                            yield CompletableResultCode.ofFailure();
-                        }
-                    });
+            switch (metricData.getType()) {
+                case LONG_SUM -> appendLongSumJson(
+                        metricData.getName(), jsonDataBuilder, metricData.getLongSumData(), json);
+                case HISTOGRAM -> appendHistogramJson(
+                        metricData.getName(), jsonDataBuilder, metricData.getHistogramData(), json);
+                default -> {
+                    LOGGER.warning("metric {0} not supported, ignoring...", metricData.getType());
+                }
+            }
         }
-        return CompletableResultCode.ofAll(out);
+        return sendMetrics.apply(json.toString());
     }
 
-    private CompletableResultCode sendHistogram(
-            String name, XJsonStringBuilder jsonDataBuilder, HistogramData data) {
-        if (data.getPoints().isEmpty()) return CompletableResultCode.ofSuccess();
-        var buf = new StringBuilder();
+    private void appendHistogramJson(
+            String name,
+            XJsonStringBuilder jsonDataBuilder,
+            HistogramData data,
+            StringBuilder json) {
+        if (data.getPoints().isEmpty()) return;
         for (var p : data.getPoints()) {
             jsonDataBuilder.append(ExportSchema.METRIC_NAME, name);
             jsonDataBuilder.append(ExportSchema.METRIC_TYPE, "histogram");
@@ -225,15 +221,16 @@ public final class ElasticSearchMetricExporter implements MetricExporter {
                                     jsonDataBuilder.append(
                                             ExportSchema.ATTR_PREFIX + e.getKey(), e.getValue()));
             var entry = jsonDataBuilder.build();
-            buf.append(CREATE_JSON).append("\n").append(entry).append("\n");
+            json.append(CREATE_JSON).append("\n").append(entry).append("\n");
         }
-        return sendMetrics.apply(buf.toString());
     }
 
-    private CompletableResultCode sendLongSum(
-            String name, XJsonStringBuilder jsonDataBuilder, SumData<LongPointData> data) {
-        if (data.getPoints().isEmpty()) return CompletableResultCode.ofSuccess();
-        var buf = new StringBuilder();
+    private void appendLongSumJson(
+            String name,
+            XJsonStringBuilder jsonDataBuilder,
+            SumData<LongPointData> data,
+            StringBuilder json) {
+        if (data.getPoints().isEmpty()) return;
         for (var p : data.getPoints()) {
             jsonDataBuilder.append(ExportSchema.METRIC_NAME, name);
             jsonDataBuilder.append(ExportSchema.METRIC_TYPE, "counter");
@@ -246,9 +243,8 @@ public final class ElasticSearchMetricExporter implements MetricExporter {
                                     jsonDataBuilder.append(
                                             ExportSchema.ATTR_PREFIX + e.getKey(), e.getValue()));
             var entry = jsonDataBuilder.build();
-            buf.append(CREATE_JSON).append("\n").append(entry).append("\n");
+            json.append(CREATE_JSON).append("\n").append(entry).append("\n");
         }
-        return sendMetrics.apply(buf.toString());
     }
 
     private CompletableResultCode sendMetrics(String metricsJson) {

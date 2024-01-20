@@ -33,6 +33,7 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -99,6 +100,7 @@ public class ElasticSearchMetricExporterTest {
                                                             List.of(1., 5.),
                                                             List.of(17L, 18L, 19L)))))));
         }
+        Assertions.assertEquals(1, out.size());
         XAsserts.assertEquals(getClass(), "requests", out.toString());
     }
 }
