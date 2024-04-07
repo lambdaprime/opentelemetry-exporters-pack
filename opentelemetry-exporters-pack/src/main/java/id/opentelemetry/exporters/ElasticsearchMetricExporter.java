@@ -49,13 +49,12 @@ import java.util.concurrent.CompletionException;
 import java.util.function.Function;
 
 /**
- * Push Metric Exporter to <a href="https://www.elastic.co/elasticsearch/">ElasticSearch</a>.
+ * Push Metric Exporter to <a href="https://www.elastic.co/elasticsearch/">ElasticSearch</a>. All
+ * metrics are aggregated following {@link AggregationTemporality#DELTA}
  *
  * <p>It is based on Java {@link HttpClient} and sends all metrics using <a
  * href="https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html">ElastiSearch
  * Bulk API</a>
- *
- * <p>Measurements are aggregated with {@link AggregationTemporality#DELTA}
  *
  * <p>Currently supporter metric types:
  *
