@@ -129,10 +129,11 @@ public final class CsvMetricExporter implements MetricExporter {
             logger.fine("metric: " + metricData);
             switch (metricData.getType()) {
                 case LONG_SUM -> appendLongSum(metricData.getName(), metricData.getLongSumData());
-                case HISTOGRAM -> appendHistogram(
-                        metricData.getName(), metricData.getHistogramData());
-                default -> logger.info(
-                        "metric " + metricData.getType() + " not supported, ignoring...");
+                case HISTOGRAM ->
+                        appendHistogram(metricData.getName(), metricData.getHistogramData());
+                default ->
+                        logger.info(
+                                "metric " + metricData.getType() + " not supported, ignoring...");
             }
         }
         return CompletableResultCode.ofSuccess();

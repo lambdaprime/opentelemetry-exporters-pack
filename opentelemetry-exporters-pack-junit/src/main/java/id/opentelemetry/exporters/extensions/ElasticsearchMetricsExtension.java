@@ -26,6 +26,7 @@ import java.net.URI;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
 import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -39,40 +40,42 @@ import org.junit.jupiter.api.extension.ExtensionContext;
  * @author lambdaprime intid@protonmail.com
  */
 public class ElasticsearchMetricsExtension implements BeforeAllCallback, AfterAllCallback {
-
+    private static final Logger logger =
+            Logger.getLogger(ElasticsearchMetricsExtension.class.getName());
     private Duration timeout = Duration.ofSeconds(4);
-    private SdkMeterProvider sdkMeterProvider;
+    private Optional<SdkMeterProvider> sdkMeterProvider = Optional.empty();
 
     @Override
     public void afterAll(ExtensionContext context) throws Exception {
-        sdkMeterProvider.shutdown().join(timeout.toMillis(), TimeUnit.MILLISECONDS);
+        sdkMeterProvider.ifPresent(
+                provider -> {
+                    provider.shutdown().join(timeout.toMillis(), TimeUnit.MILLISECONDS);
+                });
     }
 
     @Override
     public void beforeAll(ExtensionContext arg0) throws Exception {
         GlobalOpenTelemetry.resetForTest();
+        var url =
+                Optional.ofNullable(System.getProperty("metrics.elastic.url"))
+                        .or(() -> Optional.ofNullable(System.getenv("METRICS_ELASTIC_URL")))
+                        .orElseThrow(
+                                () ->
+                                        new RuntimeException(
+                                                "No system property metrics.elastic.url OR"
+                                                        + " METRICS_ELASTIC_URL env variable is"
+                                                        + " present. To disable metrics set any of"
+                                                        + " those to blank string"));
+        if (url.isBlank()) {
+            logger.warning("Metrics are ignored because metrics url is blank");
+            return;
+        }
         var exporter =
-                new ElasticSearchMetricExporter(
-                        URI.create(
-                                Optional.ofNullable(System.getProperty("metrics.elastic.url"))
-                                        .or(
-                                                () ->
-                                                        Optional.ofNullable(
-                                                                System.getenv(
-                                                                        "METRICS_ELASTIC_URL")))
-                                        .orElseThrow(
-                                                () ->
-                                                        new RuntimeException(
-                                                                "No system property"
-                                                                        + " metrics.elastic.url OR"
-                                                                        + " METRICS_ELASTIC_URL env"
-                                                                        + " variable is present"))),
-                        Optional.empty(),
-                        timeout,
-                        true);
+                new ElasticSearchMetricExporter(URI.create(url), Optional.empty(), timeout, true);
         var metricReader =
                 PeriodicMetricReader.builder(exporter).setInterval(Duration.ofSeconds(3)).build();
-        sdkMeterProvider = SdkMeterProvider.builder().registerMetricReader(metricReader).build();
-        OpenTelemetrySdk.builder().setMeterProvider(sdkMeterProvider).buildAndRegisterGlobal();
+        var provider = SdkMeterProvider.builder().registerMetricReader(metricReader).build();
+        OpenTelemetrySdk.builder().setMeterProvider(provider).buildAndRegisterGlobal();
+        sdkMeterProvider = Optional.of(provider);
     }
 }

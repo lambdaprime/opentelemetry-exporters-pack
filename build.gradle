@@ -10,7 +10,7 @@ gradle publishToMavenLocal \
 
 plugins {
   id 'java'
-  id 'com.diffplug.spotless' version '6.21.0'
+  id 'com.diffplug.spotless' version '6.25.0'
 }
 
 allprojects {
@@ -34,6 +34,7 @@ subprojects {
   // setup spotless config for all subprojects
   def spotlessConfig = {
     spotless {
+      lineEndings 'UNIX'
       java {
         importOrder()
         removeUnusedImports()
@@ -70,9 +71,13 @@ ext {
   releaseFileName = "${projectName}-v${version}.zip"
 }
 
-// gradlew requires execution of gradle-wrapper.jar which trustworthy needs to
-// be checked everytime when it is updated (otherwise it do not seems secure)
-// To avoid using it we rely on manual version check
+/*
+ * gradlew requires execution of gradle-wrapper.jar which trustworthy needs to
+ * be checked everytime when it is updated (otherwise it do not seems secure)
+ * To avoid using it we rely on manual version check
+ */
 def requiredGradleVersion = "8.3"
 if ("$gradle.gradleVersion" != "$requiredGradleVersion")
   throw new RuntimeException("Running gradle version $gradle.gradleVersion, required $requiredGradleVersion");
+
+println "Version: ${version}"

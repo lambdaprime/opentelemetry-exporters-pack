@@ -31,7 +31,8 @@
  * @see <a href="https://opentelemetry.io/ecosystem/registry/">Registry for OpenTelemetry
  *     ecosystem</a>
  * @see <a href="http://portal2.atwebpages.com/opentelemetry-exporters-pack">Documentation</a>
- * @see <a href= "https://github.com/lambdaprime/opentelemetry-exporters-pack/releases">Download</a>
+ * @see <a href=
+ *     "https://github.com/lambdaprime/opentelemetry-exporters-pack/blob/main/opentelemetry-exporters-pack/release/CHANGELOG.md">Releases</a>
  * @see <a href="https://github.com/lambdaprime/opentelemetry-exporters-pack">GitHub repository</a>
  * @author lambdaprime intid@protonmail.com
  */

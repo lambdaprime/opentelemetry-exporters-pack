@@ -10,7 +10,7 @@ gradle clean build
 
 ## With Eclipse
 
-- Build eclipse projects:
+- Build Eclipse projects:
 
 ``` bash
 gradle eclipse

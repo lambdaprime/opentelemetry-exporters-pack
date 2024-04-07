@@ -35,6 +35,7 @@ import java.net.ConnectException;
 import java.net.PasswordAuthentication;
 import java.net.URI;
 import java.net.http.HttpClient;
+import java.net.http.HttpConnectTimeoutException;
 import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse.BodyHandlers;
@@ -44,6 +45,7 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.Collection;
 import java.util.Optional;
+import java.util.concurrent.CompletionException;
 import java.util.function.Function;
 
 /**
@@ -187,10 +189,18 @@ public final class ElasticSearchMetricExporter implements MetricExporter {
                     ExportSchema.SCOPE_SCHEMA,
                     metricData.getInstrumentationScopeInfo().getSchemaUrl());
             switch (metricData.getType()) {
-                case LONG_SUM -> appendLongSumJson(
-                        metricData.getName(), jsonDataBuilder, metricData.getLongSumData(), json);
-                case HISTOGRAM -> appendHistogramJson(
-                        metricData.getName(), jsonDataBuilder, metricData.getHistogramData(), json);
+                case LONG_SUM ->
+                        appendLongSumJson(
+                                metricData.getName(),
+                                jsonDataBuilder,
+                                metricData.getLongSumData(),
+                                json);
+                case HISTOGRAM ->
+                        appendHistogramJson(
+                                metricData.getName(),
+                                jsonDataBuilder,
+                                metricData.getHistogramData(),
+                                json);
                 default -> {
                     LOGGER.warning("metric {0} not supported, ignoring...", metricData.getType());
                 }
@@ -260,22 +270,11 @@ public final class ElasticSearchMetricExporter implements MetricExporter {
                 .whenComplete(
                         (response, ex) -> {
                             LOGGER.info("Metrics sent");
-                            if (ex instanceof ConnectException e) {
-                                LOGGER.severe(e.getMessage());
+                            if (ex instanceof CompletionException e) {
+                                handleException(e.getCause());
                                 code.fail();
-                                return;
-                            } else if (ex instanceof InterruptedException e) {
-                                LOGGER.severe(e.getMessage());
+                            } else if (handleException(ex)) {
                                 code.fail();
-                                return;
-                            } else if (ex instanceof IOException e) {
-                                LOGGER.severe(e);
-                                code.fail();
-                                return;
-                            } else if (ex != null) {
-                                LOGGER.severe(ex.getMessage());
-                                code.fail();
-                                return;
                             } else if (response.statusCode() != 200) {
                                 LOGGER.severe(
                                         "Failed to send metrics to ElasticSearch, response code"
@@ -287,6 +286,25 @@ public final class ElasticSearchMetricExporter implements MetricExporter {
                             code.succeed();
                         });
         return code;
+    }
+
+    private boolean handleException(Throwable ex) {
+        if (ex instanceof ConnectException e) {
+            LOGGER.severe("Could not send metrics due to connection problems");
+            return true;
+        } else if (ex instanceof HttpConnectTimeoutException e) {
+            LOGGER.severe("HTTP connection timeout: {0}", e.getMessage());
+            return true;
+        } else if (ex instanceof InterruptedException e) {
+            LOGGER.severe("Interrupted: {0}", e.getMessage());
+            return true;
+        } else if (ex instanceof IOException e) {
+            LOGGER.severe(e);
+            return true;
+        } else if (ex != null) {
+            LOGGER.severe("Sending metrics error: {0}", ex.getMessage());
+            return true;
+        } else return false;
     }
 
     private String asTimeString(long epochNanos) {
