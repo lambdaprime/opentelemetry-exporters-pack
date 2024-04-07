@@ -67,13 +67,14 @@ import java.util.function.Function;
  * <p>Export schema is based on field names given in {@link ExportSchema}.
  *
  * <p>If ElasticSearch has self-signed SSL certificates by default Java will not allow to connect to
- * it. Use {@link #ElasticSearchMetricExporter(URI, Optional, boolean)} with insecure set to "true".
+ * it. Use {@link #ElasticsearchMetricExporter(URI, Optional, Duration, boolean)} with insecure set
+ * to "true".
  *
  * <h2>Usage</h2>
  *
  * <pre>{@code
  * var metricReader = PeriodicMetricReader
- *   .builder(new ElasticSearchMetricExporter(
+ *   .builder(new ElasticsearchMetricExporter(
  *     URI.create("https://localhost:9200/mymetrics"), Optional.of(new Credentials("elastic", "pass"))))
  *   .setInterval(Duration.ofSeconds(3))
  *   .build();
@@ -89,9 +90,9 @@ import java.util.function.Function;
  *     Metric Exporter</a>
  * @author lambdaprime intid@protonmail.com
  */
-public final class ElasticSearchMetricExporter implements MetricExporter {
+public final class ElasticsearchMetricExporter implements MetricExporter {
     private static final XLogger LOGGER =
-            XLogger.getLogger(ElasticSearchMetricExporter.class.getName());
+            XLogger.getLogger(ElasticsearchMetricExporter.class.getName());
     private static final Object CREATE_JSON =
             """
                     { "create": { } }
@@ -116,7 +117,7 @@ public final class ElasticSearchMetricExporter implements MetricExporter {
      *     Credentials can be part of the URL. Example http://user:password@localhost:9200/customers
      *     They are optional to allow anonymous access if it is enabled on ElasticSearch.
      */
-    public ElasticSearchMetricExporter(URI elasticSearch) {
+    public ElasticsearchMetricExporter(URI elasticSearch) {
         this(elasticSearch, Optional.empty(), Duration.ZERO, false);
     }
 
@@ -124,14 +125,14 @@ public final class ElasticSearchMetricExporter implements MetricExporter {
      * @param credentials ElasticSearch user and password. They are optional to allow anonymous
      *     access if it is enabled on ElasticSearch.
      */
-    public ElasticSearchMetricExporter(URI elasticSearch, Optional<Credentials> credentials) {
+    public ElasticsearchMetricExporter(URI elasticSearch, Optional<Credentials> credentials) {
         this(elasticSearch, credentials, Duration.ZERO, false);
     }
 
     /**
      * @param insecure allow connections to ElasticSearch with self-signed SSL certificates
      */
-    public ElasticSearchMetricExporter(
+    public ElasticsearchMetricExporter(
             URI elasticSearch,
             Optional<Credentials> credentials,
             Duration timeout,
@@ -166,7 +167,7 @@ public final class ElasticSearchMetricExporter implements MetricExporter {
      * @hidden for tests
      */
     @SuppressWarnings("exports")
-    public ElasticSearchMetricExporter(
+    public ElasticsearchMetricExporter(
             URI addBulkApi, Function<String, CompletableResultCode> sendMetrics) {
         this.addBulkApi = addBulkApi;
         this.sendMetrics = sendMetrics;

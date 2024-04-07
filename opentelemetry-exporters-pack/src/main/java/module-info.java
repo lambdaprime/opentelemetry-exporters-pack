@@ -12,7 +12,7 @@
  *
  * <ul>
  *   <li>{@link id.opentelemetry.exporters.CsvMetricExporter}
- *   <li>{@link id.opentelemetry.exporters.ElasticSearchMetricExporter} - export metrics to <a
+ *   <li>{@link id.opentelemetry.exporters.ElasticsearchMetricExporter} - export metrics to <a
  *       href="https://www.elastic.co/elasticsearch/">Elasticsearch</a> directly without need for
  *       any APM. Optionally allows export to Elasticsearch with self-signed SSL certificates (by
  *       default it is disabled and when enabled it prints warning message to the logs)

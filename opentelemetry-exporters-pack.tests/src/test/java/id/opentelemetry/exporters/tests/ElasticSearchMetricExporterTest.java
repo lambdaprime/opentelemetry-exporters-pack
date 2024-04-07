@@ -17,7 +17,7 @@
  */
 package id.opentelemetry.exporters.tests;
 
-import id.opentelemetry.exporters.ElasticSearchMetricExporter;
+import id.opentelemetry.exporters.ElasticsearchMetricExporter;
 import id.xfunctiontests.XAsserts;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.sdk.common.CompletableResultCode;
@@ -50,7 +50,7 @@ public class ElasticSearchMetricExporterTest {
                     return CompletableResultCode.ofSuccess();
                 };
         try (var exporter =
-                new ElasticSearchMetricExporter(URI.create("http://a/b/c"), sendMetrics)) {
+                new ElasticsearchMetricExporter(URI.create("http://a/b/c"), sendMetrics)) {
             exporter.export(
                     List.of(
                             ImmutableMetricData.createLongSum(

@@ -17,7 +17,7 @@
  */
 package id.opentelemetry.exporters.extensions;
 
-import id.opentelemetry.exporters.ElasticSearchMetricExporter;
+import id.opentelemetry.exporters.ElasticsearchMetricExporter;
 import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.metrics.SdkMeterProvider;
@@ -32,7 +32,7 @@ import org.junit.jupiter.api.extension.BeforeAllCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 
 /**
- * Configures {@link ElasticSearchMetricExporter}
+ * Configures {@link ElasticsearchMetricExporter}
  *
  * <p>Elasticsearc URL must be set via metrics.elastic.url system property OR METRICS_ELASTIC_URL
  * environment variable
@@ -71,7 +71,7 @@ public class ElasticsearchMetricsExtension implements BeforeAllCallback, AfterAl
             return;
         }
         var exporter =
-                new ElasticSearchMetricExporter(URI.create(url), Optional.empty(), timeout, true);
+                new ElasticsearchMetricExporter(URI.create(url), Optional.empty(), timeout, true);
         var metricReader =
                 PeriodicMetricReader.builder(exporter).setInterval(Duration.ofSeconds(3)).build();
         var provider = SdkMeterProvider.builder().registerMetricReader(metricReader).build();
