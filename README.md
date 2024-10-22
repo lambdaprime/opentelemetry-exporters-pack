@@ -14,8 +14,8 @@ Gradle:
 
 ```
 dependencies {
-  implementation 'io.github.lambdaprime:id.opentelemetry-exporters-pack:3.0'
-  implementation 'io.github.lambdaprime:id.opentelemetry-exporters-pack-junit:3.0'
+  implementation 'io.github.lambdaprime:id.opentelemetry-exporters-pack:4.0'
+  implementation 'io.github.lambdaprime:id.opentelemetry-exporters-pack-junit:4.0'
 }
 ```
 

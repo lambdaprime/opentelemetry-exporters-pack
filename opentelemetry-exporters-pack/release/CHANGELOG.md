@@ -1,3 +1,11 @@
+# Version 4
+
+- Adding gauges support
+
+[opentelemetry-exporters-pack-4.0.jar](https://github.com/lambdaprime/opentelemetry-exporters-pack/raw/main/opentelemetry-exporters-pack/release/opentelemetry-exporters-pack-4.0.jar)
+
+[opentelemetry-exporters-pack-junit-4.0.jar](https://github.com/lambdaprime/opentelemetry-exporters-pack/raw/main/opentelemetry-exporters-pack/release/opentelemetry-exporters-pack-junit-4.0.jar)
+
 # Version 3
 
 - Renaming ElasticSearchMetricExporter
