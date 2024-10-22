@@ -1,7 +1,9 @@
 [{ "create": { } }
-{ "SCOPE_NAME": "scope", "METRIC_NAME": "longSum", "METRIC_TYPE": "counter", "START_TIME": "1970-01-01T00:00Z", "END_TIME": "1970-01-01T00:00Z", "VALUE": 0 }
+{ "SCOPE_NAME": "scope", "METRIC_NAME": "longSum", "METRIC_TYPE": "counter", "VALUE": 0, "START_TIME": "1970-01-01T00:00Z", "END_TIME": "1970-01-01T00:00Z" }
 { "create": { } }
-{ "SCOPE_NAME": "scope", "METRIC_NAME": "hist1", "METRIC_TYPE": "histogram", "START_TIME": "1970-01-01T00:00Z", "END_TIME": "1970-01-01T00:00Z", "COUNT": 24, "SUM": 4, "MIN": 5, "MAX": 6, "AVG": 0.1666666667 }
+{ "SCOPE_NAME": "scope", "METRIC_NAME": "doubleGauge", "METRIC_TYPE": "doubleGauge", "VALUE": 111.11, "START_TIME": "1970-01-01T00:00Z", "END_TIME": "1970-01-01T00:00Z" }
 { "create": { } }
-{ "SCOPE_NAME": "scope", "METRIC_NAME": "hist1", "METRIC_TYPE": "histogram", "START_TIME": "1970-01-01T00:00Z", "END_TIME": "1970-01-01T00:00Z", "COUNT": 24, "SUM": 4, "MIN": 5, "MAX": 6, "AVG": 0.1666666667, "METRIC_NAME": "hist1", "METRIC_TYPE": "histogram", "START_TIME": "1970-01-01T00:00Z", "END_TIME": "1970-01-01T00:00Z", "COUNT": 54, "SUM": 5, "MIN": 6, "MAX": 7, "AVG": 0.0925925926 }
+{ "SCOPE_NAME": "scope", "METRIC_NAME": "hist1", "METRIC_TYPE": "histogram", "COUNT": 24, "SUM": 4, "MIN": 5, "MAX": 6, "AVG": 0.1666666667, "START_TIME": "1970-01-01T00:00Z", "END_TIME": "1970-01-01T00:00Z" }
+{ "create": { } }
+{ "SCOPE_NAME": "scope", "METRIC_NAME": "hist1", "METRIC_TYPE": "histogram", "COUNT": 24, "SUM": 4, "MIN": 5, "MAX": 6, "AVG": 0.1666666667, "START_TIME": "1970-01-01T00:00Z", "END_TIME": "1970-01-01T00:00Z", "METRIC_NAME": "hist1", "METRIC_TYPE": "histogram", "COUNT": 54, "SUM": 5, "MIN": 6, "MAX": 7, "AVG": 0.0925925926, "START_TIME": "1970-01-01T00:00Z", "END_TIME": "1970-01-01T00:00Z" }
 ]

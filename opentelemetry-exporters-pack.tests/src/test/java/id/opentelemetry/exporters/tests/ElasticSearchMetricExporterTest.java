@@ -23,6 +23,8 @@ import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.sdk.common.CompletableResultCode;
 import io.opentelemetry.sdk.common.InstrumentationScopeInfo;
 import io.opentelemetry.sdk.metrics.data.AggregationTemporality;
+import io.opentelemetry.sdk.metrics.internal.data.ImmutableDoublePointData;
+import io.opentelemetry.sdk.metrics.internal.data.ImmutableGaugeData;
 import io.opentelemetry.sdk.metrics.internal.data.ImmutableHistogramData;
 import io.opentelemetry.sdk.metrics.internal.data.ImmutableHistogramPointData;
 import io.opentelemetry.sdk.metrics.internal.data.ImmutableLongPointData;
@@ -68,6 +70,19 @@ public class ElasticSearchMetricExporterTest {
                                                             0,
                                                             Attributes.builder().build(),
                                                             0)))),
+                            ImmutableMetricData.createDoubleGauge(
+                                    Resource.getDefault(),
+                                    InstrumentationScopeInfo.create("scope"),
+                                    "doubleGauge",
+                                    "",
+                                    "ms",
+                                    ImmutableGaugeData.create(
+                                            List.of(
+                                                    ImmutableDoublePointData.create(
+                                                            0,
+                                                            0,
+                                                            Attributes.builder().build(),
+                                                            111.11)))),
                             ImmutableMetricData.createDoubleHistogram(
                                     Resource.getDefault(),
                                     InstrumentationScopeInfo.create("scope"),

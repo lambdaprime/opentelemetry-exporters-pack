@@ -23,10 +23,13 @@ import id.xfunction.net.HttpClientBuilder;
 import io.opentelemetry.sdk.common.CompletableResultCode;
 import io.opentelemetry.sdk.metrics.InstrumentType;
 import io.opentelemetry.sdk.metrics.data.AggregationTemporality;
+import io.opentelemetry.sdk.metrics.data.DoublePointData;
+import io.opentelemetry.sdk.metrics.data.GaugeData;
 import io.opentelemetry.sdk.metrics.data.HistogramData;
 import io.opentelemetry.sdk.metrics.data.LongPointData;
 import io.opentelemetry.sdk.metrics.data.MetricData;
 import io.opentelemetry.sdk.metrics.data.MetricDataType;
+import io.opentelemetry.sdk.metrics.data.PointData;
 import io.opentelemetry.sdk.metrics.data.SumData;
 import io.opentelemetry.sdk.metrics.export.MetricExporter;
 import java.io.IOException;
@@ -61,6 +64,8 @@ import java.util.function.Function;
  * <ul>
  *   <li>{@link MetricDataType#LONG_SUM}
  *   <li>{@link MetricDataType#HISTOGRAM}
+ *   <li>{@link MetricDataType#DOUBLE_GAUGE}
+ *   <li>{@link MetricDataType#LONG_GAUGE}
  * </ul>
  *
  * <p>Export schema is based on field names given in {@link ExportSchema}.
@@ -201,12 +206,56 @@ public final class ElasticsearchMetricExporter implements MetricExporter {
                                 jsonDataBuilder,
                                 metricData.getHistogramData(),
                                 json);
+                case DOUBLE_GAUGE ->
+                        appendDoubleGaugeJson(
+                                metricData.getName(),
+                                jsonDataBuilder,
+                                metricData.getDoubleGaugeData(),
+                                json);
+                case LONG_GAUGE ->
+                        appendLongGaugeJson(
+                                metricData.getName(),
+                                jsonDataBuilder,
+                                metricData.getLongGaugeData(),
+                                json);
                 default -> {
                     LOGGER.warning("metric {0} not supported, ignoring...", metricData.getType());
                 }
             }
         }
         return sendMetrics.apply(json.toString());
+    }
+
+    private void appendLongGaugeJson(
+            String name,
+            XJsonStringBuilder jsonDataBuilder,
+            GaugeData<LongPointData> data,
+            StringBuilder json) {
+        if (data.getPoints().isEmpty()) return;
+        for (var p : data.getPoints()) {
+            jsonDataBuilder.append(ExportSchema.METRIC_NAME, name);
+            jsonDataBuilder.append(ExportSchema.METRIC_TYPE, "longGauge");
+            jsonDataBuilder.append(ExportSchema.VALUE, p.getValue());
+            appendPointData(jsonDataBuilder, p);
+            var entry = jsonDataBuilder.build();
+            json.append(CREATE_JSON).append("\n").append(entry).append("\n");
+        }
+    }
+
+    private void appendDoubleGaugeJson(
+            String name,
+            XJsonStringBuilder jsonDataBuilder,
+            GaugeData<DoublePointData> data,
+            StringBuilder json) {
+        if (data.getPoints().isEmpty()) return;
+        for (var p : data.getPoints()) {
+            jsonDataBuilder.append(ExportSchema.METRIC_NAME, name);
+            jsonDataBuilder.append(ExportSchema.METRIC_TYPE, "doubleGauge");
+            jsonDataBuilder.append(ExportSchema.VALUE, p.getValue());
+            appendPointData(jsonDataBuilder, p);
+            var entry = jsonDataBuilder.build();
+            json.append(CREATE_JSON).append("\n").append(entry).append("\n");
+        }
     }
 
     private void appendHistogramJson(
@@ -218,18 +267,12 @@ public final class ElasticsearchMetricExporter implements MetricExporter {
         for (var p : data.getPoints()) {
             jsonDataBuilder.append(ExportSchema.METRIC_NAME, name);
             jsonDataBuilder.append(ExportSchema.METRIC_TYPE, "histogram");
-            jsonDataBuilder.append(ExportSchema.START_TIME, asTimeString(p.getStartEpochNanos()));
-            jsonDataBuilder.append(ExportSchema.END_TIME, asTimeString(p.getEpochNanos()));
             jsonDataBuilder.append(ExportSchema.COUNT, p.getCount());
             jsonDataBuilder.append(ExportSchema.SUM, p.getSum());
             jsonDataBuilder.append(ExportSchema.MIN, p.getMin());
             jsonDataBuilder.append(ExportSchema.MAX, p.getMax());
             jsonDataBuilder.append(ExportSchema.AVG, p.getSum() / p.getCount());
-            p.getAttributes().asMap().entrySet().stream()
-                    .forEach(
-                            e ->
-                                    jsonDataBuilder.append(
-                                            ExportSchema.ATTR_PREFIX + e.getKey(), e.getValue()));
+            appendPointData(jsonDataBuilder, p);
             var entry = jsonDataBuilder.build();
             json.append(CREATE_JSON).append("\n").append(entry).append("\n");
         }
@@ -244,17 +287,21 @@ public final class ElasticsearchMetricExporter implements MetricExporter {
         for (var p : data.getPoints()) {
             jsonDataBuilder.append(ExportSchema.METRIC_NAME, name);
             jsonDataBuilder.append(ExportSchema.METRIC_TYPE, "counter");
-            jsonDataBuilder.append(ExportSchema.START_TIME, asTimeString(p.getStartEpochNanos()));
-            jsonDataBuilder.append(ExportSchema.END_TIME, asTimeString(p.getEpochNanos()));
             jsonDataBuilder.append(ExportSchema.VALUE, p.getValue());
-            p.getAttributes().asMap().entrySet().stream()
-                    .forEach(
-                            e ->
-                                    jsonDataBuilder.append(
-                                            ExportSchema.ATTR_PREFIX + e.getKey(), e.getValue()));
+            appendPointData(jsonDataBuilder, p);
             var entry = jsonDataBuilder.build();
             json.append(CREATE_JSON).append("\n").append(entry).append("\n");
         }
+    }
+
+    private void appendPointData(XJsonStringBuilder jsonDataBuilder, PointData p) {
+        jsonDataBuilder.append(ExportSchema.START_TIME, asTimeString(p.getStartEpochNanos()));
+        jsonDataBuilder.append(ExportSchema.END_TIME, asTimeString(p.getEpochNanos()));
+        p.getAttributes().asMap().entrySet().stream()
+                .forEach(
+                        e ->
+                                jsonDataBuilder.append(
+                                        ExportSchema.ATTR_PREFIX + e.getKey(), e.getValue()));
     }
 
     private CompletableResultCode sendMetrics(String metricsJson) {
